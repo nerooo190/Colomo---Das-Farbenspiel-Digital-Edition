@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COLOMO - Das Farbenspiel (AI Edition)</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-base: #09090b; --bg-surface: #18181b; --bg-surface-hover: #27272a;
+    --border: #27272a; --border-hover: #3f3f46; --text-main: #f4f4f5; --text-muted: #a1a1aa;
+    --accent: #6366f1; --accent-hover: #4f46e5; --disc-down: #1f1f22; --disc-border: rgba(255, 255, 255, 0.05);
+    --c-purple: #a855f7; --c-red: #ef4444; --c-orange: #f97316;
+    --c-yellow: #eab308; --c-green: #22c55e; --c-blue: #3b82f6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Outfit', sans-serif; background-color: var(--bg-base); color: var(--text-main); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  #app { padding: 2rem 1rem; max-width: 900px; margin: 0 auto; min-height: 100vh; }
+  .screen { display: none; animation: fadeIn 0.4s ease-out; }
+  .screen.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  
+  h1 { font-size: 28px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; display: flex; align-items: center; gap: 12px; }
+  h2 { font-size: 20px; font-weight: 600; color: var(--text-main); margin-bottom: 16px; margin-top: 24px; }
+  p { font-size: 15px; color: var(--text-muted); }
+
+  .btn { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 20px; font-size: 14px; font-weight: 600; font-family: inherit; color: var(--text-main); cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+  .btn:hover:not(:disabled) { background: var(--bg-surface-hover); border-color: var(--border-hover); transform: translateY(-1px); }
+  .btn:active:not(:disabled) { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); box-shadow: 0 0 15px rgba(99, 102, 241, 0.4); }
+  .btn-sm { padding: 6px 14px; font-size: 13px; }
+
+  .tag { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px; margin-bottom: 12px; display: inline-block; text-transform: uppercase; }
+  .tag-easy { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); color: var(--c-green); }
+  .tag-medium { background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.2); color: var(--c-yellow); }
+  .tag-hard { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: var(--c-red); }
+
+  .game-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-top: 1rem; }
+  .game-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.3s; }
+  .game-card:hover { border-color: var(--accent); transform: translateY(-4px); box-shadow: 0 10px 25px rgba(0,0,0,0.5), 0 0 0 1px var(--accent) inset; }
+  .game-card h3 { font-size: 17px; font-weight: 600; margin-bottom: 6px; color: #fff; }
+  .game-card p { font-size: 13px; line-height: 1.5; color: var(--text-muted); min-height: 40px; }
+
+  .setup-section { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+  .setup-row { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; }
+  .setup-label { font-size: 14px; font-weight: 600; color: var(--text-main); margin-bottom: 8px; display: block; }
+  .player-count-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .player-count-btns .btn { min-width: 44px; border-radius: 8px; }
+  .player-count-btns .btn.selected { background: var(--text-main); color: var(--bg-base); border-color: var(--text-main); }
+
+  #instructions-box { background: linear-gradient(145deg, var(--bg-surface) 0%, rgba(24, 24, 27, 0.5) 100%); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 8px; padding: 16px; margin-bottom: 20px; font-size: 14px; color: var(--text-muted); line-height: 1.6; }
+  #instructions-box b { color: var(--text-main); font-weight: 600; }
+  #status-bar { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: 14px; font-weight: 500; }
+
+  #game-board { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 30px 0; perspective: 1000px; max-width: 600px; margin-inline: auto; }
+  
+  .disc { width: 68px; height: 68px; border-radius: 50%; cursor: pointer; border: 2px solid var(--disc-border); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; transition: transform 0.2s, box-shadow 0.2s; position: relative; user-select: none; box-shadow: 0 4px 6px rgba(0,0,0,0.3); flex-shrink: 0; }
+  .disc:hover:not(.collected) { transform: scale(1.08) translateY(-2px); }
+  .disc.face-down { background: var(--disc-down) !important; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5); border-color: var(--border); }
+  .disc.face-down::before { content: ''; position: absolute; inset: 6px; border-radius: 50%; border: 1px dashed rgba(255,255,255,0.1); }
+  .disc.face-down:hover::after { content: '?'; color: rgba(255,255,255,0.3); position: absolute; font-size: 24px; font-weight: 600; }
+  .disc.selected { box-shadow: 0 0 0 3px var(--bg-base), 0 0 0 6px var(--text-main); }
+  .disc.highlighted { box-shadow: 0 0 0 3px var(--bg-base), 0 0 0 6px var(--c-yellow); }
+  .disc.collected { opacity: 0.15; cursor: default; transform: scale(0.9); border-color: transparent; box-shadow: none !important; }
+
+  #player-area { display: grid; gap: 10px; margin-bottom: 20px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .player-row { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; transition: all 0.3s; }
+  .player-row.active-player { border-color: var(--accent); background: rgba(99, 102, 241, 0.08); box-shadow: 0 0 15px rgba(99, 102, 241, 0.15); transform: translateY(-2px); }
+  .player-name { font-size: 15px; font-weight: 600; color: var(--text-main); flex-grow: 1; display:flex; align-items:center; gap:6px; }
+  .score-badge { background: var(--bg-base); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 13px; font-weight: 600; }
+
+  #log { background: var(--bg-base); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; max-height: 140px; overflow-y: auto; font-size: 13px; color: var(--text-muted); line-height: 1.8; margin-bottom: 20px; font-family: monospace; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5); }
+  #log div { border-bottom: 1px solid rgba(255,255,255,0.03); padding: 2px 0; }
+  #log div:last-child { border-bottom: none; color: var(--text-main); font-weight: 500; }
+
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 1rem; justify-content: center; }
+
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 100; }
+  .modal { background: var(--bg-surface); border-radius: 16px; border: 1px solid var(--border); padding: 32px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7); animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+  @keyframes popIn { 0% { opacity: 0; transform: scale(0.9); } 100% { opacity: 1; transform: scale(1); } }
+  .modal h2 { margin-top: 0; margin-bottom: 12px; font-size: 26px; color: #fff; }
+  
+  .podium { display: flex; flex-direction: column; gap: 8px; margin: 24px 0; text-align: left; background: var(--bg-base); border-radius: 8px; padding: 16px; border: 1px solid var(--border); }
+  .podium-row { display: flex; align-items: center; gap: 12px; font-size: 15px; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.02); }
+  .podium-row:nth-child(1) { border-left: 3px solid var(--c-yellow); background: rgba(234, 179, 8, 0.05); }
+  .podium-rank { font-weight: 700; color: var(--text-muted); width: 24px; }
+  .podium-name { flex: 1; color: var(--text-main); font-weight: 600; }
+  .podium-pts { font-weight: 700; color: var(--accent); }
+
+  .logo-dots { display: flex; gap: 6px; }
+  .logo-dots div { width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 10px currentColor; }
+  
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg-base); }
+  ::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- MENU -->
+  <div id="screen-menu" class="screen active">
+    <div style="display:flex; align-items:center; justify-content: center; gap:16px; margin-bottom:8px; margin-top: 2vh;">
+      <div class="logo-dots">
+        <div style="background:var(--c-purple); color:var(--c-purple)"></div>
+        <div style="background:var(--c-red); color:var(--c-red)"></div>
+        <div style="background:var(--c-orange); color:var(--c-orange)"></div>
+        <div style="background:var(--c-yellow); color:var(--c-yellow)"></div>
+        <div style="background:var(--c-green); color:var(--c-green)"></div>
+        <div style="background:var(--c-blue); color:var(--c-blue)"></div>
+      </div>
+      <h1 style="margin:0">COLOMO</h1>
+    </div>
+    <p style="text-align: center; margin-bottom: 2.5rem; letter-spacing: 0.5px;">Das Farbenspiel · The Ultimate AI Edition</p>
+
+    <div class="setup-section">
+      <div class="setup-row">
+        <div>
+          <span class="setup-label">Human Players</span>
+          <div class="player-count-btns" id="btn-humans">
+            <button class="btn selected" onclick="setHumans(1)">1</button>
+            <button class="btn" onclick="setHumans(2)">2</button>
+            <button class="btn" onclick="setHumans(3)">3</button>
+            <button class="btn" onclick="setHumans(4)">4</button>
+          </div>
+        </div>
+        <div>
+          <span class="setup-label">AI Bots</span>
+          <div class="player-count-btns" id="btn-bots">
+            <button class="btn" onclick="setBots(0)">0</button>
+            <button class="btn selected" onclick="setBots(1)">1</button>
+            <button class="btn" onclick="setBots(2)">2</button>
+            <button class="btn" onclick="setBots(3)">3</button>
+            <button class="btn" onclick="setBots(4)">4</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h2>Choose Game Mode</h2>
+    <div class="game-cards" id="game-cards-list"></div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="screen-game" class="screen">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <button class="btn btn-sm" onclick="showMenu()">← Back to Hub</button>
+      <span id="game-title-bar" style="font-size:16px;font-weight:600;color:var(--text-main); text-transform: uppercase;"></span>
+    </div>
+    <div id="instructions-box"></div>
+    <div id="status-bar"></div>
+    <div id="player-area"></div>
+    <div id="game-board"></div>
+    <div id="log">System initialized...</div>
+    <div class="controls" id="game-controls"></div>
+  </div>
+</div>
+
+<!-- END MODAL -->
+<div id="modal-end" class="modal-bg" style="display:none">
+  <div class="modal">
+    <h2 id="modal-title">Game over!</h2>
+    <p id="modal-msg" style="color:var(--text-muted); margin-bottom:16px; font-size:14px;"></p>
+    <div class="podium" id="modal-podium"></div>
+    <div style="display:flex;gap:12px;justify-content:center;margin-top:1.5rem">
+      <button class="btn" onclick="restartGame()">Play Again</button>
+      <button class="btn btn-primary" onclick="showMenu()">Main Menu</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==== GLOBALS & SETUP ====
+const COLORS =['purple','red','orange','yellow','green','blue'];
+const COLOR_HEX = { purple: 'var(--c-purple)', red: 'var(--c-red)', orange: 'var(--c-orange)', yellow: 'var(--c-yellow)', green: 'var(--c-green)', blue: 'var(--c-blue)' };
+
+let humans = 1, bots = 1;
+let state = {};
+let currentGame = null;
+let isProcessing = false;
+
+// AI Memory Tracker
+let aiMemory =[]; 
+
+const BOT_ICON = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-muted)"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>`;
+
+const GAMES =[
+  {id:'reigen', name:'Reigen (Color Pairs)', tag:'easy', minP:2, maxP:6, desc:'Find one pair of each color. If you already have it, give it away to someone who needs it! First to collect all 6 colors wins.'},
+  {id:'trio', name:'Trio (Triplets)', tag:'medium', minP:2, maxP:6, desc:'Find three identical colors to secure a trio. Flip 2, if they match, you get to flip a 3rd.'},
+  {id:'rainbow', name:'Regenbogen (Rainbow)', tag:'medium', minP:2, maxP:6, desc:'Push your luck! Flip without repeating colors. Bank to secure points.'},
+  {id:'rondo', name:'Rondo (The Circle)', tag:'medium', minP:2, maxP:6, desc:'Match two circle discs with the center disc to score points.'},
+  {id:'blackout', name:'Blackout', tag:'hard', minP:3, maxP:6, desc:'Memorize the 6 discs. The Shifter secretly swaps two, Seekers must locate target colors.'},
+  {id:'blind_race', name:'Blindes Huhn', tag:'easy', minP:2, maxP:6, desc:'Ludo-style race. Remember your color under the disc and race to the finish!'},
+  {id:'wer_ist_weg', name:'Wer ist weg?', tag:'hard', minP:2, maxP:6, desc:'Memorize 9 discs. The Hider flips one face down. Seekers must correctly identify the missing color.'},
+  {id:'stacker', name:'Zitterpartie', tag:'easy', minP:2, maxP:6, desc:'Roll colors to build your stack. Don\'t roll the top color or your tower collapses!'}
+];
+
+function setHumans(n) { humans = n; checkLimits(); renderSetupUI(); }
+function setBots(n) { bots = n; checkLimits(); renderSetupUI(); }
+function checkLimits() {
+  let tot = humans + bots;
+  if(tot > 6) { if(humans > bots) bots = 6 - humans; else humans = 6 - bots; }
+  if(tot < 2) { if(humans===0) bots=Math.max(2,bots); else bots = 2-humans; }
+  if(humans < 0) humans = 0; if(bots < 0) bots = 0;
+}
+
+function renderSetupUI() {
+  document.querySelectorAll('#btn-humans .btn').forEach((b,i) => b.classList.toggle('selected', i+1===humans));
+  document.querySelectorAll('#btn-bots .btn').forEach((b,i) => b.classList.toggle('selected', i===bots));
+  
+  const el = document.getElementById('game-cards-list');
+  const tot = humans + bots;
+  el.innerHTML = GAMES.map(g => {
+    const ok = tot >= g.minP && tot <= g.maxP;
+    return `<div class="game-card${ok?'':' collected'}" onclick="${ok?`startGame('${g.id}')`:''}" style="${ok?'':'opacity:0.4;cursor:not-allowed'}">
+      <div class="tag tag-${g.tag}">${g.tag}</div>
+      <h3>${g.name}</h3><p>${g.desc}</p>
+      <div style="margin-top:12px;font-size:12px;color:var(--text-muted); font-weight: 500;">👤 ${g.minP}–${g.maxP} Players</div>
+    </div>`;
+  }).join('');
+}
+
+function showMenu() {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-menu').classList.add('active');
+  document.getElementById('modal-end').style.display='none';
+  renderSetupUI();
+}
+
+function log(msg) {
+  const el = document.getElementById('log');
+  const d = document.createElement('div');
+  const t = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  d.innerHTML = `<span style="color: var(--border-hover)">[${t}]</span> ${msg}`;
+  el.appendChild(d); el.scrollTop = el.scrollHeight;
+}
+function clearLog(){ document.getElementById('log').innerHTML=''; }
+
+function getActiveActor() {
+  if (state.game === 'wer_ist_weg') return state.phase === 'hide' ? state.players[state.hiderIdx] : state.players[state.seekerIdx];
+  if (state.game === 'blackout') return state.phase === 'shift' ? state.players[state.shifterIdx] : state.players[state.seekerIdx];
+  return state.players[state.current];
+}
+
+// ==== AI CORE SYSTEM ====
+async function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function revealDisc(idx) {
+  let d = state.board[idx];
+  d.faceDown = false;
+  if(Math.random() < 0.85) aiMemory[idx] = d.color;
+  renderBoard();
+}
+
+function aiGetUnknownIndices() {
+  let unk =[];
+  state.board.forEach((d,i) => { if(d && !d.collected && d.faceDown) unk.push(i); });
+  return unk;
+}
+
+function aiFindKnownColor(color, excludeArr =[]) {
+  for(let i=0; i<state.board.length; i++) {
+    if(aiMemory[i] === color && !excludeArr.includes(i)) {
+      let d = state.board[i];
+      if(d && d.faceDown && !d.collected) return i;
+    }
+  }
+  return -1;
+}
+
+function checkAITurn() {
+  if (state.gamePhase === 'end') return;
+  let actor = getActiveActor();
+  if (!actor || !actor.isBot) return;
+  
+  isProcessing = true;
+  setTimeout(() => {
+    isProcessing = false;
+    executeAIAction();
+  }, 1200);
+}
+
+function executeAIAction() {
+  if (state.game === 'reigen') {
+    if (state.phase === 'pick1') {
+      let unk = aiGetUnknownIndices();
+      let neededColor = null, pairMatch = -1;
+      let p = state.players[state.current];
+      // Try to find a pair we need
+      for(let c of COLORS) {
+        if(!p.collected.includes(c)) {
+          let i1 = aiFindKnownColor(c);
+          if(i1 !== -1) {
+            let i2 = aiFindKnownColor(c, [i1]);
+            if(i2 !== -1) { neededColor = c; state.aiTarget = i2; handleReigenClick(i1); return; }
+          }
+        }
+      }
+      state.aiTarget = null;
+      handleReigenClick(unk[Math.floor(Math.random()*unk.length)]);
+    } else {
+      if (state.aiTarget !== null) { handleReigenClick(state.aiTarget); state.aiTarget = null; }
+      else {
+        let c1 = state.board[state.firstFlip].color;
+        let k2 = aiFindKnownColor(c1,[state.firstFlip]);
+        if(k2 !== -1) handleReigenClick(k2);
+        else { let unk = aiGetUnknownIndices(); handleReigenClick(unk[Math.floor(Math.random()*unk.length)]); }
+      }
+    }
+  }
+  else if (state.game === 'trio') {
+    if (state.flipped.length === 0) {
+      let unk = aiGetUnknownIndices(); handleTrioClick(unk[Math.floor(Math.random()*unk.length)]);
+    } else if (state.flipped.length === 1) {
+      let c = state.board[state.flipped[0]].color;
+      let k2 = aiFindKnownColor(c, state.flipped);
+      handleTrioClick(k2 !== -1 ? k2 : aiGetUnknownIndices()[0]);
+    } else if (state.flipped.length === 2) {
+      let c = state.board[state.flipped[0]].color;
+      let k3 = aiFindKnownColor(c, state.flipped);
+      handleTrioClick(k3 !== -1 ? k3 : aiGetUnknownIndices()[0]);
+    }
+  }
+  else if (state.game === 'rainbow') {
+    if (state.phase === 'flipping') {
+      let str = state.flipped.length;
+      if (str > 2 && Math.random() < (str*0.25)) { endRainbowTurn(); }
+      else {
+        let unk = aiGetUnknownIndices();
+        let safeUnk = unk.filter(idx => !state.flipped.includes(aiMemory[idx]));
+        if(safeUnk.length === 0) safeUnk = unk;
+        handleRainbowClick(safeUnk[Math.floor(Math.random()*safeUnk.length)]);
+      }
+    }
+  }
+  else if (state.game === 'rondo') {
+    let cC = state.centerStack[state.centerStack.length-1].color;
+    if (state.phase === 'pick1') {
+      let k = aiFindKnownColor(cC);
+      handleRondoClick(k !== -1 ? k : aiGetUnknownIndices()[0]);
+    } else {
+      let k = aiFindKnownColor(cC, [state.firstFlip]);
+      handleRondoClick(k !== -1 ? k : aiGetUnknownIndices()[0]);
+    }
+  }
+  else if (state.game === 'blackout') {
+    if (state.phase === 'shift') {
+      let i1 = Math.floor(Math.random()*6), i2;
+      do { i2 = Math.floor(Math.random()*6); } while(i1===i2);
+      blackoutSwapSel = [i1, i2]; blackoutDoneShifting();
+    } else if (state.phase === 'seek') {
+      let k = aiFindKnownColor(state.seekTarget);
+      let idx = k !== -1 ? k : aiGetUnknownIndices()[0] || Math.floor(Math.random()*6);
+      blackoutDiscClick(idx);
+    }
+  }
+  else if (state.game === 'blind_race') { rollBlindRace(); }
+  else if (state.game === 'wer_ist_weg') {
+    if (state.phase === 'hide') { werIstWegHide(Math.floor(Math.random()*9)); }
+    else if (state.phase === 'guess') {
+      let actual = state.board[state.hiddenIdx].color;
+      let guess = Math.random() < 0.8 ? actual : COLORS[Math.floor(Math.random()*COLORS.length)];
+      werIstWegGuess(guess);
+    }
+  }
+  else if (state.game === 'stacker') { rollStacker(); }
+}
+
+// ==== UI RENDERERS ====
+function renderBoard() {
+  const b = document.getElementById('game-board');
+  if(!state.board) return;
+  b.innerHTML = state.board.map((d,i) => {
+    if(!d) return `<div style="width:68px;height:68px;flex-shrink:0;"></div>`;
+    const fd = d.faceDown !== undefined ? d.faceDown : false;
+    const cls = (d.selected?' selected':'')+(d.collected?' collected':'')+(d.highlighted?' highlighted':'');
+    const colVal = COLOR_HEX[d.color];
+    const style = fd ? '' : `background:${colVal}; box-shadow: 0 0 20px ${colVal}66;`;
+    return `<div class="disc${fd?' face-down':''}${cls}" style="${style}" onclick="discClick(${i})"></div>`;
+  }).join('');
+}
+
+function renderPlayerArea() {
+  const el = document.getElementById('player-area');
+  el.innerHTML = state.players.map((p,i) => {
+    let act = false;
+    if(state.game==='wer_ist_weg') act = (state.phase==='hide' && i===state.hiderIdx) || (state.phase==='guess' && i===state.seekerIdx);
+    else if(state.game==='blackout') act = (state.phase==='shift' && i===state.shifterIdx) || (state.phase==='seek' && i===state.seekerIdx);
+    else act = (i === state.current);
+    
+    let scores = '';
+    if(state.game === 'reigen') scores = `<span class="score-badge">${p.collected.length}/6 Colors</span>`;
+    if(state.game === 'trio') scores = `<span class="score-badge">${p.trios} Trios</span>`;
+    if(state.game === 'rondo' || state.game === 'wer_ist_weg') scores = `<span class="score-badge">${p.pts} pts</span>`;
+    
+    return `<div class="player-row${act?' active-player':''}">
+      <span class="player-name">${p.isBot ? BOT_ICON : ''}${p.name}</span>
+      ${scores}
+    </div>`;
+  }).join('');
+}
+
+function renderStatus(msg) { document.getElementById('status-bar').innerHTML=`<span>${msg}</span>`; }
+
+function showEndModal(title, msg, scores) {
+  state.gamePhase = 'end';
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-msg').innerHTML = msg;
+  const sorted = [...scores].sort((a,b)=>b.pts-a.pts);
+  document.getElementById('modal-podium').innerHTML = sorted.map((s,i)=>`
+    <div class="podium-row"><span class="podium-rank">${i+1}.</span><span class="podium-name">${s.name}</span><span class="podium-pts">${s.pts}</span></div>
+  `).join('');
+  document.getElementById('modal-end').style.display = 'flex';
+}
+
+function restartGame() { document.getElementById('modal-end').style.display='none'; startGame(currentGame); }
+
+window.discClick = function(idx) {
+  let actor = getActiveActor();
+  if(isProcessing || (actor && actor.isBot) || state.gamePhase === 'end') return;
+  if(state.game === 'reigen') handleReigenClick(idx);
+  else if(state.game === 'trio') handleTrioClick(idx);
+  else if(state.game === 'rainbow') handleRainbowClick(idx);
+  else if(state.game === 'rondo') handleRondoClick(idx);
+  else if(state.game === 'blackout') blackoutDiscClick(idx);
+  else if(state.game === 'wer_ist_weg') { if(state.phase === 'hide') werIstWegHide(idx); }
+  else if(state.game === 'blind_race') blackoutDiscClick(idx); // uses same logic for manual click
+};
+
+// ==== ENGINES ====
+function generatePlayers() {
+  let pl =[];
+  for(let i=0; i<humans; i++) pl.push({ name:`Player ${i+1}`, isBot:false, collected:[], pts:0 });
+  for(let i=0; i<bots; i++) pl.push({ name:`AI Bot ${i+1}`, isBot:true, collected:[], pts:0 });
+  return pl;
+}
+
+function shuffle(arr) { for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
+
+function startGame(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-game').classList.add('active');
+  document.getElementById('game-title-bar').textContent = GAMES.find(g=>g.id===id).name;
+  document.getElementById('game-controls').innerHTML = '';
+  clearLog();
+  aiMemory =[];
+  currentGame = id;
+  isProcessing = false;
+  
+  if(id === 'reigen') initReigen();
+  else if(id === 'trio') initTrio();
+  else if(id === 'rainbow') initRainbow();
+  else if(id === 'rondo') initRondo();
+  else if(id === 'blackout') initBlackout();
+  else if(id === 'blind_race') initBlindRace();
+  else if(id === 'wer_ist_weg') initWerIstWeg();
+  else if(id === 'stacker') initStacker();
+}
+
+function nextTurn() {
+  if (state.gamePhase === 'end') return;
+  state.current = (state.current + 1) % state.players.length;
+  updateUI();
+  checkAITurn();
+}
+
+function updateUI() {
+  renderPlayerArea();
+  if(state.game === 'reigen') renderStatus(`Turn: ${state.players[state.current].name} | Flip ${state.phase==='pick1'?'1st':'2nd'} disc`);
+  else if(state.game === 'trio') renderStatus(`Turn: ${state.players[state.current].name} | Flip ${state.flipped.length+1} disc`);
+  else if(state.game === 'rondo') renderStatus(`Turn: ${state.players[state.current].name} | Match circle to center!`);
+}
+
+// ==== REIGEN ====
+function initReigen() {
+  let d =[];
+  COLORS.forEach(c => { for(let i=0; i<6; i++) d.push({color:c, faceDown:true, collected:false}); });
+  state = { game: 'reigen', players: generatePlayers(), current: 0, board: shuffle(d), phase: 'pick1', gamePhase: 'play' };
+  document.getElementById('instructions-box').innerHTML = `<b>Reigen:</b> Find a pair of matching colors. If you already have that color, you must give it to a player who doesn't! First to collect all 6 colors wins.`;
+  renderBoard(); updateUI(); checkAITurn();
+}
+function handleReigenClick(idx) {
+  let d = state.board[idx];
+  if(!d || d.collected || !d.faceDown) return;
+  if (state.phase === 'pick1') {
+    state.firstFlip = idx; revealDisc(idx); state.phase = 'pick2'; updateUI(); checkAITurn();
+  } else if (state.phase === 'pick2' && idx !== state.firstFlip) {
+    state.secondFlip = idx; revealDisc(idx);
+    isProcessing = true;
+    setTimeout(() => {
+      let d1 = state.board[state.firstFlip], d2 = state.board[state.secondFlip];
+      if (d1.color === d2.color) {
+        let cp = state.players[state.current];
+        if (!cp.collected.includes(d1.color)) {
+          cp.collected.push(d1.color); log(`${cp.name} keeps the <span style="color:${COLOR_HEX[d1.color]}">${d1.color}</span> pair!`);
+        } else {
+          let rec = state.players.find(p => !p.collected.includes(d1.color));
+          if(rec) { rec.collected.push(d1.color); log(`${cp.name} gifts the <span style="color:${COLOR_HEX[d1.color]}">${d1.color}</span> pair to ${rec.name}!`); }
+          else log(`Everyone has <span style="color:${COLOR_HEX[d1.color]}">${d1.color}</span>! Discarded.`);
+        }
+        d1.collected = true; d2.collected = true;
+        
+        let winner = state.players.find(p => p.collected.length >= 6);
+        if(winner) { showEndModal('Victory!', `${winner.name} collected all 6 colors!`, state.players.map(p=>({name:p.name,pts:p.collected.length}))); return; }
+      } else {
+        d1.faceDown = true; d2.faceDown = true; log(`No match.`);
+      }
+      state.phase = 'pick1'; isProcessing = false; renderBoard(); nextTurn();
+    }, 1200);
+  }
+}
+
+// ==== TRIO ====
+function initTrio() {
+  let d =[];
+  COLORS.forEach(c => { for(let i=0; i<5; i++) d.push({color:c, faceDown:true, collected:false}); });
+  state = { game: 'trio', players: generatePlayers().map(p=>({...p, trios:0})), current: 0, board: shuffle(d), phase: 'play', flipped:[], gamePhase: 'play' };
+  document.getElementById('instructions-box').innerHTML = `<b>Trio:</b> Flip 2 discs. If they match, flip a 3rd! Find three of a kind to score.`;
+  renderBoard(); updateUI(); checkAITurn();
+}
+function handleTrioClick(idx) {
+  let d = state.board[idx];
+  if(!d || d.collected || !d.faceDown) return;
+  state.flipped.push(idx); revealDisc(idx); updateUI();
+  
+  if (state.flipped.length === 2) {
+    let c1 = state.board[state.flipped[0]].color, c2 = state.board[state.flipped[1]].color;
+    if(c1 === c2) { log(`Match found! Flip a 3rd disc.`); checkAITurn(); }
+    else {
+      isProcessing = true;
+      setTimeout(() => {
+        state.flipped.forEach(i => state.board[i].faceDown = true); state.flipped =[];
+        isProcessing = false; renderBoard(); nextTurn();
+      }, 1200);
+    }
+  } else if (state.flipped.length === 3) {
+    let c = state.board[state.flipped[0]].color;
+    let win = state.flipped.every(i => state.board[i].color === c);
+    isProcessing = true;
+    setTimeout(() => {
+      if(win) {
+        state.players[state.current].trios++; state.players[state.current].pts++;
+        state.flipped.forEach(i => state.board[i].collected = true);
+        log(`TRIO! ${state.players[state.current].name} scores.`);
+        if (state.board.filter(x=>!x.collected).length < 3) {
+          showEndModal('Game Over', 'Highest Trios Wins!', state.players); return;
+        }
+      } else {
+        state.flipped.forEach(i => state.board[i].faceDown = true); log(`Close, but no trio.`);
+      }
+      state.flipped =[]; isProcessing = false; renderBoard(); nextTurn();
+    }, 1200);
+  }
+}
+
+// ==== RAINBOW ====
+function initRainbow() {
+  let d =[]; COLORS.forEach(c => { for(let i=0; i<6; i++) d.push({color:c, faceDown:true, collected:false}); });
+  state = { game: 'rainbow', players: generatePlayers().map(p=>({...p, rainbows:0})), current: 0, board: shuffle(d), phase: 'flipping', flipped:[], gamePhase: 'play' };
+  document.getElementById('instructions-box').innerHTML = `<b>Rainbow:</b> Flip as long as you don't hit a duplicate color! Hit "Bank" to save progress. Complete 6 for a Rainbow!`;
+  renderRainbowUI(); checkAITurn();
+}
+function renderRainbowUI() {
+  renderBoard(); renderPlayerArea();
+  renderStatus(`Turn: ${state.players[state.current].name} | Streak: ${state.flipped.length}/6`);
+  document.getElementById('game-controls').innerHTML = `<button class="btn btn-primary btn-sm" onclick="endRainbowTurn()" ${isProcessing||getActiveActor().isBot||state.flipped.length===0?'disabled':''}>Bank & End Turn</button>`;
+}
+function handleRainbowClick(idx) {
+  let d = state.board[idx];
+  if(!d || d.collected || !d.faceDown) return;
+  revealDisc(idx);
+  
+  if (state.flipped.includes(d.color)) {
+    log(`Duplicate <span style="color:${COLOR_HEX[d.color]}">${d.color}</span>! Streak ruined.`);
+    isProcessing = true;
+    setTimeout(() => {
+      let prev = state.board.findIndex((x,i) => !x.faceDown && !x.collected && x.color===d.color && i!==idx);
+      if(prev!==-1) state.board[prev].faceDown = true;
+      d.faceDown = true; state.flipped =[];
+      isProcessing = false; renderRainbowUI(); nextTurn();
+    }, 1200);
+  } else {
+    state.flipped.push(d.color); d.collected = true; state.players[state.current].collected.push(d.color);
+    if (state.flipped.length === 6) {
+      state.players[state.current].rainbows++; state.players[state.current].pts += 10;
+      log(`PERFECT RAINBOW by ${state.players[state.current].name}!`);
+      state.flipped =[];
+      if (state.board.every(x=>x.collected)) { showEndModal('Cleared!','Final Scores', state.players); return; }
+    }
+    renderRainbowUI(); checkAITurn();
+  }
+}
+window.endRainbowTurn = function() {
+  if (state.flipped.length === 0) return;
+  log(`${state.players[state.current].name} safely banked ${state.flipped.length} discs.`);
+  state.players[state.current].pts += state.flipped.length;
+  state.flipped =[]; renderRainbowUI(); nextTurn();
+};
+
+// ==== RONDO ====
+function initRondo() {
+  let d =[]; COLORS.forEach(c => { for(let i=0; i<6; i++) d.push({color:c, faceDown:true}); });
+  d = shuffle(d);
+  state = { game: 'rondo', players: generatePlayers(), current: 0, board: d.slice(0,12), centerStack: d.slice(12), phase: 'pick1', gamePhase: 'play' };
+  document.getElementById('instructions-box').innerHTML = `<b>Rondo:</b> 12 discs in the circle. 1 in the center. Flip 2 circle discs. If both match the center, keep it as a point!`;
+  renderRondoUI(); checkAITurn();
+}
+function renderRondoUI() {
+  if (state.centerStack.length === 0) { showEndModal('Empty Stack', 'Final Scores:', state.players); return; }
+  let center = state.centerStack[state.centerStack.length-1];
+  let centerHtml = `<div style="display:flex; justify-content:center; margin-bottom:20px; align-items:center; gap:16px;">
+    <span style="font-size:14px; color:var(--text-muted)">Target:</span>
+    <div class="disc" style="background:${COLOR_HEX[center.color]}; box-shadow:0 0 20px ${COLOR_HEX[center.color]}80"></div>
+    <span style="font-size:14px; color:var(--text-muted)">(${state.centerStack.length} left)</span>
+  </div>`;
+  
+  document.getElementById('game-board').innerHTML = centerHtml + `<div style="display:flex; flex-wrap:wrap; gap:12px; justify-content:center; max-width: 400px; margin: 0 auto;">` + 
+    state.board.map((d,i) => {
+      const fd = d.faceDown;
+      const col = COLOR_HEX[d.color];
+      return `<div class="disc${fd?' face-down':''}" style="${fd?'':`background:${col};box-shadow:0 0 10px ${col}80`}" onclick="discClick(${i})"></div>`;
+    }).join('') + `</div>`;
+  renderPlayerArea(); renderStatus(`Turn: ${state.players[state.current].name} | Match circle to target`);
+}
+function handleRondoClick(idx) {
+  let d = state.board[idx];
+  if(!d || !d.faceDown) return;
+  if(state.phase === 'pick1') { state.firstFlip = idx; revealDisc(idx); state.phase = 'pick2'; renderRondoUI(); checkAITurn(); }
+  else if (state.phase === 'pick2' && idx !== state.firstFlip) {
+    state.secondFlip = idx; revealDisc(idx); renderRondoUI();
+    isProcessing = true;
+    setTimeout(() => {
+      let d1 = state.board[state.firstFlip], d2 = state.board[state.secondFlip];
+      let center = state.centerStack[state.centerStack.length-1];
+      if (d1.color === d2.color && d1.color === center.color) {
+        log(`Match! ${state.players[state.current].name} secures the center disc.`);
+        state.players[state.current].pts++; state.centerStack.pop();
+        d1.faceDown = true; d2.faceDown = true; // reset circle
+      } else {
+        d1.faceDown = true; d2.faceDown = true; log(`Incorrect. Discs reset.`);
+      }
+      state.phase = 'pick1'; isProcessing = false;
+      if (state.centerStack.length === 0) { renderRondoUI(); } else { nextTurn(); renderRondoUI(); }
+    }, 1400);
+  }
+}
+
+// ==== WER IST WEG ====
+function initWerIstWeg() {
+  let d =[]; for(let i=0; i<9; i++) d.push({color:COLORS[Math.floor(Math.random()*COLORS.length)], faceDown:false});
+  state = { game: 'wer_ist_weg', players: generatePlayers(), hiderIdx: 0, seekerIdx: 1, board: d, phase: 'memorize', round: 1, totalRounds: 6, gamePhase: 'play' };
+  document.getElementById('instructions-box').innerHTML = `<b>Wer ist weg?</b> Memorize the 9 discs. The Hider flips one over. The Seeker must guess its color!`;
+  log(`Round ${state.round}: ${state.players[state.seekerIdx].name} (Seeker), memorize the board!`);
+  renderWerIstWeg();
+  setTimeout(() => { state.phase = 'hide'; log(`${state.players[state.hiderIdx].name} (Hider), click a disc to hide it.`); renderWerIstWeg(); checkAITurn(); }, 5000);
+}
+function renderWerIstWeg() {
+  renderBoard(); renderPlayerArea();
+  let stat = '';
+  if(state.phase==='memorize') stat = `Memorize the board! (5s)`;
+  else if(state.phase==='hide') stat = `Action: <b style="color:var(--text-main)">${state.players[state.hiderIdx].name}</b> hide a disc!`;
+  else if(state.phase==='guess') stat = `Action: <b style="color:var(--text-main)">${state.players[state.seekerIdx].name}</b> guess the color!`;
+  renderStatus(`Round ${state.round}/${state.totalRounds} | ${stat}`);
+  
+  if (state.phase === 'guess' && !state.players[state.seekerIdx].isBot) {
+    document.getElementById('game-controls').innerHTML = `<div style="text-align:center; width:100%;"><p style="margin-bottom:8px">What color is hidden?</p><div style="display:flex; justify-content:center; gap:8px;">${COLORS.map(c=>`<button class="btn" style="background:${COLOR_HEX[c]}; width:44px; height:44px; border-radius:50%; box-shadow:0 0 10px ${COLOR_HEX[c]}80;" onclick="werIstWegGuess('${c}')"></button>`).join('')}</div></div>`;
+  } else { document.getElementById('game-controls').innerHTML = ''; }
+}
+window.werIstWegHide = function(idx) {
+  if (isProcessing) return;
+  state.board[idx].faceDown = true; state.hiddenIdx = idx; state.phase = 'guess';
+  log(`A disc was hidden.`); renderWerIstWeg(); checkAITurn();
+};
+window.werIstWegGuess = function(color) {
+  if (isProcessing) return;
+  let actual = state.board[state.hiddenIdx].color;
+  state.board[state.hiddenIdx].faceDown = false;
+  if (color === actual) { log(`Correct guess! Seeker scores.`); state.players[state.seekerIdx].pts++; }
+  else { log(`Wrong! It was <span style="color:${COLOR_HEX[actual]}">${actual}</span>. Hider scores.`); state.players[state.hiderIdx].pts++; }
+  renderWerIstWeg();
+  
+  state.round++;
+  if (state.round > state.totalRounds) { setTimeout(() => showEndModal('Game Over', 'Final Scores:', state.players), 1500); }
+  else {
+    isProcessing = true;
+    setTimeout(() => {
+      state.hiderIdx = (state.hiderIdx + 1) % state.players.length; state.seekerIdx = (state.hiderIdx + 1) % state.players.length;
+      state.board = []; for(let i=0; i<9; i++) state.board.push({color:COLORS[Math.floor(Math.random()*COLORS.length)], faceDown:false});
+      state.phase = 'memorize'; isProcessing = false;
+      log(`Round ${state.round}: ${state.players[state.seekerIdx].name} (Seeker), memorize!`);
+      renderWerIstWeg();
+      setTimeout(() => { state.phase = 'hide'; log(`${state.players[state.hiderIdx].name} (Hider), click a disc.`); renderWerIstWeg(); checkAITurn(); }, 5000);
+    }, 2500);
+  }
+};
+
+// ==== BLACKOUT ====
+let blackoutSwapSel =[];
+function initBlackout() {
+  state = { game: 'blackout', players: generatePlayers(), shifterIdx: 0, seekerIdx: 1, board: COLORS.map(c=>({color:c, faceDown:false})), phase: 'memorize', round: 1, totalRounds: 6, gamePhase: 'play' };
+  shuffle(state.board);
+  document.getElementById('instructions-box').innerHTML = `<b>Blackout:</b> Shifter shows 6 discs. After 5s, they face down and Shifter swaps two. Seekers must locate colors.`;
+  renderBlackoutUI(); log(`Round ${state.round}: ${state.players[state.shifterIdx].name} is Shifter. Memorize!`);
+  setTimeout(() => { state.phase = 'shift'; state.board.forEach(d=>d.faceDown=true); log(`Shifter, swap 2 discs.`); renderBlackoutUI(); checkAITurn(); }, 5000);
+}
+function renderBlackoutUI() {
+  const b = document.getElementById('game-board');
+  b.innerHTML = state.board.map((d,i) => {
+    const fd = d.faceDown; const col = COLOR_HEX[d.color];
+    const sel = blackoutSwapSel.includes(i) ? ' selected' : '';
+    return `<div class="disc${fd?' face-down':''}${sel}" style="${fd?'':`background:${col};box-shadow:0 0 10px ${col}80`}" onclick="discClick(${i})"></div>`;
+  }).join('');
+  renderPlayerArea();
+  renderStatus(`Round ${state.round} | ${state.phase==='memorize'?'Memorize!':state.phase==='shift'?'Shifter swapping':`Seeker: locate ${state.seekTarget}`}`);
+  
+  if (state.phase === 'shift' && !state.players[state.shifterIdx].isBot) {
+    document.getElementById('game-controls').innerHTML = `<button class="btn btn-primary" onclick="blackoutDoneShifting()">Confirm Swap</button>`;
+  } else document.getElementById('game-controls').innerHTML = '';
+}
+window.blackoutDoneShifting = function() {
+  if (blackoutSwapSel.length === 2) {
+    let [a,b] = blackoutSwapSel; let tmp = state.board[a]; state.board[a] = state.board[b]; state.board[b] = tmp;
+    log(`Swap complete.`);
+  }
+  blackoutSwapSel = []; state.phase = 'seek'; state.seekTarget = COLORS[Math.floor(Math.random()*COLORS.length)];
+  renderBlackoutUI(); checkAITurn();
+};
+function blackoutDiscClick(idx) {
+  if (state.phase === 'shift') {
+    if(blackoutSwapSel.includes(idx)) blackoutSwapSel = blackoutSwapSel.filter(x=>x!==idx);
+    else if(blackoutSwapSel.length<2) blackoutSwapSel.push(idx);
+    renderBlackoutUI();
+  } else if (state.phase === 'seek') {
+    let d = state.board[idx]; if(!d.faceDown) return;
+    d.faceDown = false;
+    if (d.color === state.seekTarget) { log(`Correct! Seeker (+1)`); state.players[state.seekerIdx].pts++; state.board.splice(idx, 1); }
+    else { log(`Wrong! Shifter (+1)`); state.players[state.shifterIdx].pts++; state.board.splice(idx, 1); }
+    
+    if (state.board.length <= 1) {
+      state.round++;
+      if (state.round > state.totalRounds) { setTimeout(() => showEndModal('Blackout Complete', 'Scores:', state.players), 1000); }
+      else {
+        isProcessing = true;
+        setTimeout(() => {
+          state.shifterIdx = (state.shifterIdx + 1) % state.players.length; state.seekerIdx = (state.shifterIdx + 1) % state.players.length;
+          state.board = COLORS.map(c=>({color:c, faceDown:false})); shuffle(state.board); state.phase = 'memorize';
+          isProcessing = false; renderBlackoutUI();
+          setTimeout(() => { state.phase = 'shift'; state.board.forEach(d=>d.faceDown=true); renderBlackoutUI(); checkAITurn(); }, 5000);
+        }, 2000);
+      }
+    } else {
+      state.seekTarget = COLORS[Math.floor(Math.random()*COLORS.length)]; state.phase = 'seek';
+      setTimeout(() => { renderBlackoutUI(); checkAITurn(); }, 1000);
+    }
+  }
+}
+
+// ==== BLIND RACE & STACKER ====
+function initBlindRace() {
+  state = { game: 'blind_race', players: generatePlayers().map((p,i)=>({...p, color:COLORS[i], pos:Math.floor(Math.random()*64)})), current: 0, board:[...Array(64)].map(()=>({color:null, faceDown:false})), phase: 'roll', gamePhase: 'play' };
+  document.getElementById('instructions-box').innerHTML = `<b>Blind Race:</b> Remember your color under the black discs! Roll to cross tile 63.`;
+  state.players.forEach(p => state.board[p.pos] = {color:p.color, faceDown:true});
+  renderBRUI(); checkAITurn();
+}
+function renderBRUI() {
+  document.getElementById('game-board').innerHTML = state.board.map((d,i) => {
+    let p = state.players.find(pl=>pl.pos===i);
+    let vis = p && !d.faceDown;
+    let bg = vis ? COLOR_HEX[p.color] : 'var(--disc-down)';
+    return `<div style="width:48px;height:48px;border-radius:50%;background:${bg};${vis?'box-shadow:0 0 10px '+COLOR_HEX[p.color]:'border:1px dashed rgba(255,255,255,0.1)'} display:flex;align-items:center;justify-content:center;font-weight:700;color:white;">${vis?p.name[0]:''}</div>`;
+  }).join('');
+  renderPlayerArea(); renderStatus(`Turn: ${state.players[state.current].name}`);
+  document.getElementById('game-controls').innerHTML = `<button class="btn btn-primary" onclick="rollBlindRace()" ${isProcessing||getActiveActor().isBot?'disabled':''}>ROLL DICE</button>`;
+}
+window.rollBlindRace = function() {
+  if (isProcessing) return;
+  let roll = Math.ceil(Math.random()*6); let p = state.players[state.current];
+  state.board[p.pos] = {color:null, faceDown:false};
+  p.pos = Math.min(63, p.pos + roll);
+  state.board[p.pos] = {color:p.color, faceDown:false};
+  log(`${p.name} rolled ${roll} -> Tile ${p.pos}`);
+  renderBRUI();
+  if (p.pos >= 63) { setTimeout(() => showEndModal('Race Finished!', `${p.name} crossed the line!`, state.players.map(pl=>({name:pl.name,pts:pl.pos}))), 1000); return; }
+  isProcessing = true;
+  setTimeout(() => { state.board[p.pos].faceDown = true; isProcessing = false; renderBRUI(); nextTurn(); }, 1200);
+};
+
+function initStacker() {
+  state = { game: 'stacker', players: generatePlayers().map(p=>({...p, stack:[], out:false})), current: 0, phase: 'roll', gamePhase: 'play' };
+  document.getElementById('instructions-box').innerHTML = `<b>Stacker:</b> Roll to add colors to your stack. Roll the same color as your top disc, and your tower collapses!`;
+  renderStackerUI(); checkAITurn();
+}
+function renderStackerUI() {
+  document.getElementById('game-board').innerHTML = '';
+  document.getElementById('player-area').innerHTML = state.players.map((p,i)=>`
+    <div class="player-row${i===state.current&&!p.out?' active-player':''}${p.out?' collected':''}" style="flex-direction:column; align-items:flex-start;">
+      <div style="display:flex;justify-content:space-between;width:100%;"><span class="player-name">${p.isBot?BOT_ICON:''}${p.name}${p.out?' (OUT)':''}</span><span class="score-badge">${p.stack.length}</span></div>
+      <div style="display:flex;gap:4px;margin-top:10px;">${p.stack.map(c=>`<div style="width:20px;height:8px;border-radius:4px;background:${COLOR_HEX[c]};box-shadow:0 0 5px ${COLOR_HEX[c]}80"></div>`).join('')}</div>
+    </div>`).join('');
+  renderStatus(`Turn: ${state.players[state.current].name}`);
+  document.getElementById('game-controls').innerHTML = `<button class="btn btn-primary" onclick="rollStacker()" ${isProcessing||getActiveActor().isBot||state.players[state.current].out?'disabled':''}>ROLL COLOR</button>`;
+}
+window.rollStacker = function() {
+  if (isProcessing) return;
+  let c = COLORS[Math.floor(Math.random()*6)]; let p = state.players[state.current];
+  if (p.stack[p.stack.length-1] === c) {
+    p.out = true; log(`CRITICAL: ${p.name} stacked <span style="color:${COLOR_HEX[c]}">${c}</span> on <span style="color:${COLOR_HEX[c]}">${c}</span>. OUT!`);
+    let alive = state.players.filter(x=>!x.out);
+    if (alive.length <= 1) { showEndModal('Simulation Over', `${alive[0]?alive[0].name:'No one'} survived!`, state.players.map(pl=>({name:pl.name,pts:pl.stack.length}))); return; }
+  } else {
+    p.stack.push(c); p.pts++; log(`${p.name} stacked <span style="color:${COLOR_HEX[c]}">${c}</span>.`);
+  }
+  do { state.current = (state.current+1)%state.players.length; } while(state.players[state.current].out);
+  renderStackerUI(); checkAITurn();
+};
+
+// Start UI
+renderSetupUI();
+</script>
+</body>
+</html>
